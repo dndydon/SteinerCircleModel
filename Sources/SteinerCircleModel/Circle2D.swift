@@ -1,13 +1,7 @@
 /// A circle in 2D space, defined by its center and radius.
 
+import CoreGraphics
 import Foundation
-
-extension CGPoint: @retroactive Equatable {
-  public static let zero = CGPoint(x: 0, y: 0)
-  public static func == (lhs: CGPoint, rhs: CGPoint) -> Bool {
-    lhs.x == rhs.x && lhs.y == rhs.y
-  }
-}
 
 public struct Circle2D: Sendable {
   public var center: CGPoint

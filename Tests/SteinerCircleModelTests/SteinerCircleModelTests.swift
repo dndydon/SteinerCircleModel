@@ -27,8 +27,8 @@ struct SteinerCircleTests {
   @Test("Rho for 2 circles")
   func rhoForTwo() {
     let sc = SteinerCircle(outerRadius: 1, circleCount: 2)
-    // sin(π/2) = 1, so rho = 1*1/(1+1) * (1+0.001) ≈ 0.5005
-    let expected = 1.0 * 1.0 / (1.0 + 1.0) * (1.0 + 0.001)
+    // sin(π/2) = 1, so rho = 1*1/(1+1) * (1-0.001) ≈ 0.4995
+    let expected = 1.0 * 1.0 / (1.0 + 1.0) * (1.0 - 0.001)
     #expect(abs(sc.rho - expected) < 1e-10)
   }
 
@@ -36,7 +36,7 @@ struct SteinerCircleTests {
   func rhoForSix() {
     let sc = SteinerCircle(outerRadius: 1, circleCount: 6)
     let sinTheta = sin(CGFloat.pi / 6) // 0.5
-    let expected = sinTheta / (1 + sinTheta) * (1 + 0.001)
+    let expected = sinTheta / (1 + sinTheta) * (1 - 0.001)
     #expect(abs(sc.rho - expected) < 1e-10)
   }
 
@@ -49,16 +49,21 @@ struct SteinerCircleTests {
 
   // MARK: - Inner Radius
 
-  @Test("Inner radius formula: R - 2ρ(1-gap)")
+  @Test("Inner radius formula: R - 2ρ")
   func innerRadiusFormula() {
     let sc = SteinerCircle(outerRadius: 1, circleCount: 6)
-    let expected = 1.0 - 2 * sc.rho * (1 - sc.gap)
+    let expected = 1.0 - 2 * sc.rho
     #expect(abs(sc.innerRadius - expected) < 1e-10)
   }
 
-  @Test("Inner radius is positive for typical counts")
-  func innerRadiusPositive() {
+  @Test("Inner radius is non-negative for typical counts")
+  func innerRadiusNonNegative() {
     for n in 2...20 {
+      let sc = SteinerCircle(outerRadius: 1, circleCount: n)
+      #expect(sc.innerRadius >= 0, "innerRadius should be non-negative for count \(n)")
+    }
+    // For count > 2, inner radius is strictly positive
+    for n in 3...20 {
       let sc = SteinerCircle(outerRadius: 1, circleCount: n)
       #expect(sc.innerRadius > 0, "innerRadius should be positive for count \(n)")
     }
@@ -72,10 +77,11 @@ struct SteinerCircleTests {
     #expect(sc.gap == 0.001)
   }
 
-  @Test("Larger gap increases inner radius")
-  func gapIncreasesInnerRadius() {
+  @Test("Larger gap shrinks circles and grows inner radius")
+  func gapEffect() {
     let small = SteinerCircle(outerRadius: 1, circleCount: 6, gap: 0.1)
     let large = SteinerCircle(outerRadius: 1, circleCount: 6, gap: 0.5)
+    #expect(large.rho < small.rho)
     #expect(large.innerRadius > small.innerRadius)
   }
 

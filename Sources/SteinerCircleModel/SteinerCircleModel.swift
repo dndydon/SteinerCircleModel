@@ -8,8 +8,10 @@
 ///
 /// Derived:
 ///   - θ = π/N  (half the angular spacing between adjacent centers)
-///   - ρ = R·sinθ/(1+sinθ)·(1+gap) — radius of each chain circle
-///   - r = R − 2ρ·(1−gap) — inner circle radius
+///   - ρ_t = R·sinθ/(1+sinθ) — tangent-case chain circle radius
+///   - ρ = ρ_t·(1−gap) — chain circle radius adjusted for gap
+///   - d = R − ρ — center ring distance (chain circles tangent to outer)
+///   - r = R − 2ρ — inner circle radius (chain circles tangent to inner)
 ///
 /// All properties are computed from the immutable inputs.
 
@@ -34,23 +36,31 @@ public struct SteinerCircle: Sendable {
     CGFloat.pi / CGFloat(circleCount)
   }
 
-  /// Radius of each chain circle, adjusted for gap.
-  public var rho: CGFloat {
+  /// Chain circle radius in the tangent (no-gap) case.
+  private var rhoTangent: CGFloat {
     guard circleCount != 1 else { return outerRadius }
     let sinTheta = sin(theta)
     let r = outerRadius * sinTheta / (1 + sinTheta)
     guard r > .zero else { return .zero }
-    return r * (1 + gap)
+    return r
   }
 
-  /// Radius of the inner circle.
-  public var innerRadius: CGFloat {
-    outerRadius - 2 * rho * (1 - gap)
+  /// Radius of each chain circle, adjusted for gap.
+  public var rho: CGFloat {
+    guard circleCount != 1 else { return outerRadius }
+    return rhoTangent * (1 - gap)
   }
 
   /// Distance from the center to each chain circle's center.
+  /// Chain circles remain tangent to the outer circle: d + ρ = R.
   public var chainCenterDistance: CGFloat {
     outerRadius - rho
+  }
+
+  /// Radius of the inner circle.
+  /// Chain circles remain tangent to the inner circle: d − ρ = r.
+  public var innerRadius: CGFloat {
+    outerRadius - 2 * rho
   }
 
   /// Angular position (radians) of the i-th chain circle center (0-based).

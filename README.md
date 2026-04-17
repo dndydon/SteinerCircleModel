@@ -94,6 +94,17 @@ struct SteinerChainView: View {
 }
 ```
 
+## Interactive Preview
+
+The package includes a `#Preview` in `SteinerCirclePlayground.swift` for visualizing
+both the concentric chain and the circle-inversion transform directly in Xcode's canvas.
+
+- **Circles** / **Gap** sliders adjust the chain geometry in real time
+- **Circle Inversion** toggle switches to the inverted (non-concentric) view
+- **Drag** on the canvas to move the inversion center and see the cascade effect
+
+Open the file in Xcode and choose **Editor > Canvas** to use it.
+
 ## Requirements
 
 - Swift 5.9+
