@@ -22,7 +22,7 @@ All types are `Sendable`.
 ```swift
 import SteinerCircleModel
 
-// 6 circles inside a unit circle, with a small gap
+// 6 circles inside a unit circle, with a small gap between each circle
 let chain = SteinerCircle(outerRadius: 1, circleCount: 6, gap: 0.05)
 
 chain.rho          // radius of each chain circle
@@ -102,6 +102,7 @@ both the concentric chain and the circle-inversion transform directly in Xcode's
 - **Circles** / **Gap** sliders adjust the chain geometry in real time
 - **Circle Inversion** toggle switches to the inverted (non-concentric) view
 - **Drag** on the canvas to move the inversion center and see the cascade effect
+- **Double-click** to re-center the inversion view
 
 Open the file in Xcode and choose **Editor > Canvas** to use it.
 
