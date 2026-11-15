@@ -1,3 +1,6 @@
+// Slider and DragGesture are unavailable on tvOS.
+#if !os(tvOS)
+import SteinerCircleModel
 import SwiftUI
 
 #Preview("Steiner Circle Demo") {
@@ -11,14 +14,18 @@ struct SteinerCircleDemo: View {
   @State private var gap: Double = 0.001
   @State private var inversionOffset: CGSize = .zero
   @State private var showInversion = false
+  @State private var isRotating = false
 
   private let outerRadius: CGFloat = 140
+  /// Chain rotation speed in radians per second.
+  private let rotationSpeed: Double = 0.5
 
-  private var model: SteinerCircle {
+  private func model(phase: CGFloat) -> SteinerCircle {
     SteinerCircle(
       outerRadius: outerRadius,
       circleCount: Int(circleCount),
-      gap: gap
+      gap: gap,
+      phase: phase
     )
   }
 
@@ -27,14 +34,21 @@ struct SteinerCircleDemo: View {
       Text(showInversion ? "Inverted Steiner Chain" : "Steiner Circle")
         .font(.title2.bold())
 
-      Canvas { context, size in
-        let center = CGPoint(x: size.width / 2, y: size.height / 2)
-        let sc = model
+      TimelineView(.animation(paused: !isRotating)) { timeline in
+        // Wrap the phase so it stays small; the chain looks identical
+        // after every full turn.
+        let elapsed = timeline.date.timeIntervalSinceReferenceDate * rotationSpeed
+        let phase = isRotating ? CGFloat(elapsed.truncatingRemainder(dividingBy: 2 * .pi)) : 0
 
-        if showInversion {
-          drawInverted(context: context, center: center, sc: sc)
-        } else {
-          drawConcentric(context: context, center: center, sc: sc)
+        Canvas { context, size in
+          let center = CGPoint(x: size.width / 2, y: size.height / 2)
+          let sc = model(phase: phase)
+
+          if showInversion {
+            drawInverted(context: context, center: center, sc: sc)
+          } else {
+            drawConcentric(context: context, center: center, sc: sc)
+          }
         }
       }
       .frame(width: 360, height: 360)
@@ -68,6 +82,8 @@ struct SteinerCircleDemo: View {
         )
         Toggle("Circle Inversion", isOn: $showInversion)
           .font(.caption)
+        Toggle("Rotate Chain", isOn: $isRotating)
+          .font(.caption)
         Text("Drag to move inversion center")
           .font(.caption2)
           .foregroundStyle(.secondary)
@@ -83,18 +99,14 @@ struct SteinerCircleDemo: View {
 
   private func drawConcentric(context: GraphicsContext, center: CGPoint,
                               sc: SteinerCircle) {
-    strokeCircle(context: context, center: center,
-                 radius: sc.outerRadius, color: .blue)
-    strokeCircle(context: context, center: center,
-                 radius: sc.innerRadius, color: .red)
+    drawCircle(context: context, center: center, circle: sc.outerCircle,
+               scale: 1, fill: nil, stroke: .blue)
+    drawCircle(context: context, center: center, circle: sc.innerCircle,
+               scale: 1, fill: nil, stroke: .red)
 
     for circle in sc.chainCircles {
-      let pos = CGPoint(x: center.x + circle.center.x,
-                        y: center.y + circle.center.y)
-      fillCircle(context: context, center: pos,
-                 radius: circle.radius, color: .green.opacity(0.3))
-      strokeCircle(context: context, center: pos,
-                   radius: circle.radius, color: .green)
+      drawCircle(context: context, center: center, circle: circle,
+                 scale: 1, fill: .green.opacity(0.3), stroke: .green)
     }
   }
 
@@ -120,55 +132,36 @@ struct SteinerCircleDemo: View {
     let scale = maxExtent > outerRadius ? outerRadius / maxExtent : 1.0
 
       // Draw inverted outer circle
-    drawScaledCircle(context: context, center: center, circle: inverted.outerCircle,
-                     scale: scale, fill: nil, stroke: .blue)
+    drawCircle(context: context, center: center, circle: inverted.outerCircle,
+               scale: scale, fill: nil, stroke: .blue)
 
       // Draw inverted inner circle
-    drawScaledCircle(context: context, center: center, circle: inverted.innerCircle,
-                     scale: scale, fill: nil, stroke: .red)
+    drawCircle(context: context, center: center, circle: inverted.innerCircle,
+               scale: scale, fill: nil, stroke: .red)
 
       // Draw inverted chain circles
     for circle in inverted.chainCircles {
-      drawScaledCircle(context: context, center: center, circle: circle,
-                       scale: scale, fill: .orange.opacity(0.3), stroke: .orange)
+      drawCircle(context: context, center: center, circle: circle,
+                 scale: scale, fill: .orange.opacity(0.3), stroke: .orange)
     }
 
       // Mark inversion center
-    let invPos = CGPoint(x: center.x + invCenter.x * scale,
-                         y: center.y + invCenter.y * scale)
-    let dotSize: CGFloat = 6
-    let dotRect = CGRect(x: invPos.x - dotSize / 2, y: invPos.y - dotSize / 2,
-                         width: dotSize, height: dotSize)
-    context.fill(Path(ellipseIn: dotRect), with: .color(.white))
-    context.stroke(Path(ellipseIn: dotRect), with: .color(.primary), lineWidth: 1)
-  }
-
-  private func drawScaledCircle(context: GraphicsContext, center: CGPoint,
-                                circle: Circle2D, scale: CGFloat,
-                                fill: Color?, stroke: Color) {
-    let pos = CGPoint(x: center.x + circle.center.x * scale,
-                      y: center.y + circle.center.y * scale)
-    let r = circle.radius * scale
-    if let fill {
-      fillCircle(context: context, center: pos, radius: r, color: fill)
-    }
-    strokeCircle(context: context, center: pos, radius: r, color: stroke)
+    let dot = Path(Circle2D(center: invCenter, radius: 3 / scale),
+                   scale: scale, offset: center)
+    context.fill(dot, with: .color(.white))
+    context.stroke(dot, with: .color(.primary), lineWidth: 1)
   }
 
     // MARK: - Drawing Helpers
 
-  private func strokeCircle(context: GraphicsContext, center: CGPoint,
-                            radius: CGFloat, color: Color) {
-    let rect = CGRect(x: center.x - radius, y: center.y - radius,
-                      width: radius * 2, height: radius * 2)
-    context.stroke(Path(ellipseIn: rect), with: .color(color), lineWidth: 1.5)
-  }
-
-  private func fillCircle(context: GraphicsContext, center: CGPoint,
-                          radius: CGFloat, color: Color) {
-    let rect = CGRect(x: center.x - radius, y: center.y - radius,
-                      width: radius * 2, height: radius * 2)
-    context.fill(Path(ellipseIn: rect), with: .color(color))
+  private func drawCircle(context: GraphicsContext, center: CGPoint,
+                          circle: Circle2D, scale: CGFloat,
+                          fill: Color?, stroke: Color) {
+    let path = Path(circle, scale: scale, offset: center)
+    if let fill {
+      context.fill(path, with: .color(fill))
+    }
+    context.stroke(path, with: .color(stroke), lineWidth: 1.5)
   }
 }
 
@@ -191,3 +184,4 @@ private struct LabeledSlider: View {
     }
   }
 }
+#endif

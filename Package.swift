@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 
 import PackageDescription
 
@@ -9,10 +9,16 @@ let package = Package(
     .library(
       name: "SteinerCircleModel",
       targets: ["SteinerCircleModel"]),
+    .library(
+      name: "SteinerCircleUI",
+      targets: ["SteinerCircleUI"]),
   ],
   targets: [
     .target(
       name: "SteinerCircleModel"),
+    .target(
+      name: "SteinerCircleUI",
+      dependencies: ["SteinerCircleModel"]),
     .testTarget(
       name: "SteinerCircleModelTests",
       dependencies: ["SteinerCircleModel"]),

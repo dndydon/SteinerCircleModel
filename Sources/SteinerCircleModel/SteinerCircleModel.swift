@@ -22,11 +22,16 @@ public struct SteinerCircle: Sendable {
   public let outerRadius: CGFloat
   public let circleCount: Int
   public let gap: CGFloat
+  /// Rotation (radians) applied to every chain circle center.
+  /// By Steiner's porism, the chain stays tangent at any phase.
+  public let phase: CGFloat
 
-  public init(outerRadius: CGFloat, circleCount: Int, gap: CGFloat = 0.001) {
+  public init(outerRadius: CGFloat, circleCount: Int, gap: CGFloat = 0.001,
+              phase: CGFloat = 0) {
     self.outerRadius = outerRadius
     self.circleCount = max(1, circleCount)
     self.gap = max(gap, 0.001)
+    self.phase = phase
   }
 
   // MARK: - Computed Geometry
@@ -64,10 +69,10 @@ public struct SteinerCircle: Sendable {
   }
 
   /// Angular position (radians) of the i-th chain circle center (0-based).
-  /// Circle 0 is at the top (12 o'clock / -π/2).
+  /// Circle 0 is at the top (12 o'clock / -π/2) when `phase` is 0.
   public func centerAngle(at index: Int) -> CGFloat {
     let step = 2 * CGFloat.pi / CGFloat(circleCount)
-    return -.pi / 2 + step * CGFloat(index)
+    return -.pi / 2 + phase + step * CGFloat(index)
   }
 
   /// Center point of the i-th chain circle (0-based), in a coordinate

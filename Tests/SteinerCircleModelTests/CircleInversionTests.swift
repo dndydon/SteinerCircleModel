@@ -177,6 +177,40 @@ struct SteinerCircleInversionTests {
     #expect(allClose, "Origin-centered inversion should preserve equal radii")
   }
 
+  @Test("Phase rotates every center angle")
+  func phaseRotatesAngles() {
+    let base = SteinerCircle(outerRadius: 1, circleCount: 5)
+    let rotated = SteinerCircle(outerRadius: 1, circleCount: 5, phase: 0.3)
+    for i in 0..<5 {
+      #expect(abs(rotated.centerAngle(at: i) - base.centerAngle(at: i) - 0.3) < 1e-10)
+    }
+  }
+
+  /// Steiner's porism: after inversion, every chain circle stays tangent
+  /// to both bounding circles no matter how far the chain is rotated.
+  @Test("Inverted chain stays tangent at any phase", arguments: [0.0, 0.4, 1.3, 2.9, 5.5])
+  func invertedChainTangentAtAnyPhase(phase: Double) {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, gap: 0.2, phase: phase)
+    let inv = CircleInversion(center: CGPoint(x: 1.5, y: -0.8), radius: 10)
+    guard let result = sc.inverted(through: inv) else {
+      #expect(Bool(false), "Inversion should succeed")
+      return
+    }
+    for circle in result.chainCircles {
+      #expect(isTangent(circle, result.outerCircle))
+      #expect(isTangent(circle, result.innerCircle))
+    }
+  }
+
+  /// Two circles are tangent (internally or externally) when the distance
+  /// between centers equals the sum or difference of their radii.
+  private func isTangent(_ a: Circle2D, _ b: Circle2D) -> Bool {
+    let d = hypot(a.center.x - b.center.x, a.center.y - b.center.y)
+    let tolerance = 1e-6 * max(a.radius, b.radius)
+    return abs(d - (a.radius + b.radius)) < tolerance
+      || abs(d - abs(a.radius - b.radius)) < tolerance
+  }
+
   @Test("outerCircle and innerCircle properties")
   func outerInnerCircle() {
     let sc = SteinerCircle(outerRadius: 5, circleCount: 8)
