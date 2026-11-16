@@ -157,6 +157,86 @@ struct SoddyHexletInversionTests {
   }
 }
 
+// MARK: - From Three Tangent Spheres
+
+@Suite("InvertedSoddyHexlet from three tangent spheres")
+struct HexletFromTangentSpheresTests {
+
+  /// A and B touch externally at the origin; C sits beside them.
+  static let external = (
+    Sphere3D(center: [0, 0, 1], radius: 1),
+    Sphere3D(center: [0, 0, -1], radius: 1),
+    Sphere3D(center: [Double(3).squareRoot(), 0, 0], radius: 1)
+  )
+
+  /// A encloses B and C: the classic hexlet picture.
+  static let enclosing = (
+    Sphere3D(center: .zero, radius: 3),
+    Sphere3D(center: [0, 0, 1], radius: 2),
+    Sphere3D(center: [0, 0, -2], radius: 1)
+  )
+
+  @Test("Ring touches A, B, C, and its neighbors, and keeps the given spheres",
+        arguments: [0.0, 0.9, 4.0])
+  func ringTangency(phase: Double) throws {
+    for (a, b, c) in [Self.external, Self.enclosing] {
+      let hexlet = try InvertedSoddyHexlet(tangentTo: a, b, c, phase: phase)
+      #expect(hexlet.a == a && hexlet.b == b && hexlet.c == c)
+      #expect(hexlet.spheres.count == 6)
+      expectRing(hexlet)
+    }
+  }
+
+  @Test("Works for any hexlet produced by inversion, in any argument order",
+        arguments: SoddyHexletInversionTests.centers)
+  func fromInvertedHexlet(center: SIMD3<Double>) throws {
+    let source = try #require(SoddyHexlet(radius: 1, phase: 0.7)
+      .inverted(through: SphereInversion(center: center, radius: 2)))
+    for (a, b, c) in [(source.a, source.b, source.c), (source.c, source.a, source.b),
+                      (source.b, source.c, source.a)] {
+      expectRing(try InvertedSoddyHexlet(tangentTo: a, b, c, phase: 1.1))
+    }
+  }
+
+  @Test("The enclosing sphere is A when A holds the others")
+  func enclosingA() throws {
+    let (a, b, c) = Self.enclosing
+    #expect(try InvertedSoddyHexlet(tangentTo: a, b, c).enclosingSphere == a)
+  }
+
+  @Test("Spheres that don't touch, or coincide, are rejected")
+  func notTangent() {
+    let (a, b, _) = Self.external
+    #expect(throws: HexletError.notMutuallyTangent) {
+      try InvertedSoddyHexlet(tangentTo: a, b, Sphere3D(center: [5, 0, 0], radius: 1))
+    }
+    #expect(throws: HexletError.notMutuallyTangent) {
+      try InvertedSoddyHexlet(tangentTo: a, a, b)
+    }
+  }
+
+  @Test("Three spheres touching at one point, or a zero radius, are degenerate")
+  func degenerate() {
+    let a = Sphere3D(center: [0, 0, 1], radius: 1)
+    let b = Sphere3D(center: [0, 0, -1], radius: 1)
+    #expect(throws: HexletError.degenerate) {
+      try InvertedSoddyHexlet(tangentTo: a, b, Sphere3D(center: [0, 0, 2], radius: 2))
+    }
+    #expect(throws: HexletError.degenerate) {
+      try InvertedSoddyHexlet(tangentTo: a, b, Sphere3D(center: [1, 0, 0], radius: 0))
+    }
+  }
+
+  private func expectRing(_ hexlet: InvertedSoddyHexlet) {
+    for (i, sphere) in hexlet.spheres.enumerated() {
+      #expect(isTangent(sphere, hexlet.a))
+      #expect(isTangent(sphere, hexlet.b))
+      #expect(isTangent(sphere, hexlet.c))
+      #expect(isTangent(sphere, hexlet.spheres[(i + 1) % 6]))
+    }
+  }
+}
+
 // MARK: - Helpers
 
 /// Two spheres are tangent (internally or externally) when the distance
