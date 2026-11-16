@@ -71,10 +71,27 @@ struct SteinerCircleTests {
 
   // MARK: - Gap
 
-  @Test("Gap is clamped to minimum 0.001")
+  @Test("Negative gap is clamped to 0")
   func gapClamp() {
-    let sc = SteinerCircle(outerRadius: 1, circleCount: 5, gap: 0)
+    let sc = SteinerCircle(outerRadius: 1, circleCount: 5, gap: -0.5)
+    #expect(sc.gap == 0)
+  }
+
+  @Test("Default gap is 0.001")
+  func gapDefault() {
+    let sc = SteinerCircle(outerRadius: 1, circleCount: 5)
     #expect(sc.gap == 0.001)
+  }
+
+  @Test("Zero gap makes neighbors exactly tangent", arguments: [3, 6, 8, 13])
+  func zeroGapTangency(count: Int) {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: count, gap: 0)
+    let circles = sc.chainCircles
+    for i in 0..<count {
+      let a = circles[i], b = circles[(i + 1) % count]
+      let distance = hypot(b.center.x - a.center.x, b.center.y - a.center.y)
+      #expect(abs(distance - (a.radius + b.radius)) < 1e-9)
+    }
   }
 
   @Test("Larger gap shrinks circles and grows inner radius")
@@ -140,7 +157,98 @@ struct SteinerCircleTests {
     let sc = SteinerCircle(outerRadius: 1, circleCount: 6)
     let desc = sc.description
     #expect(desc.contains("count: 6"))
+    #expect(desc.contains("windings: 1"))
     #expect(desc.contains("rho:"))
     #expect(desc.contains("innerRadius:"))
+  }
+}
+
+// MARK: - Multiple Windings
+
+@Suite("Multiple Windings")
+struct WindingsTests {
+
+  @Test("Default is one winding")
+  func defaultWindings() {
+    let sc = SteinerCircle(outerRadius: 1, circleCount: 7)
+    #expect(sc.windings == 1)
+  }
+
+  @Test("Windings clamp to 1...(n - 1)/2")
+  func windingsClamp() {
+    #expect(SteinerCircle(outerRadius: 1, circleCount: 7, windings: 0).windings == 1)
+    #expect(SteinerCircle(outerRadius: 1, circleCount: 7, windings: 3).windings == 3)
+    #expect(SteinerCircle(outerRadius: 1, circleCount: 7, windings: 4).windings == 3)
+    #expect(SteinerCircle(outerRadius: 1, circleCount: 8, windings: 4).windings == 3)
+    #expect(SteinerCircle(outerRadius: 1, circleCount: 2, windings: 5).windings == 1)
+  }
+
+  @Test("Theta is mπ/N")
+  func thetaWithWindings() {
+    let sc = SteinerCircle(outerRadius: 1, circleCount: 7, windings: 2)
+    #expect(abs(sc.theta - 2 * .pi / 7) < 1e-12)
+  }
+
+  @Test("Consecutive centers are 2θ apart")
+  func centerSpacing() {
+    let sc = SteinerCircle(outerRadius: 1, circleCount: 7, windings: 3)
+    for i in 0..<6 {
+      #expect(abs(sc.centerAngle(at: i + 1) - sc.centerAngle(at: i) - 2 * sc.theta) < 1e-12)
+    }
+  }
+
+  @Test("Centers land on distinct positions when n and m are coprime")
+  func distinctCenters() {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, windings: 2)
+    let points = (0..<7).map(sc.centerPoint(at:))
+    for i in 0..<7 {
+      for j in (i + 1)..<7 {
+        #expect(hypot(points[i].x - points[j].x, points[i].y - points[j].y) > 1e-6)
+      }
+    }
+  }
+
+  @Test("Neighbors and boundaries stay tangent",
+        arguments: [(5, 2), (7, 2), (7, 3), (8, 3), (11, 4)])
+  func tangency(count: Int, windings: Int) {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: count, windings: windings, gap: 0)
+    let circles = sc.chainCircles
+    for i in 0..<count {
+      let next = circles[(i + 1) % count]
+      #expect(isTangent(circles[i], next))
+      #expect(isTangent(circles[i], sc.outerCircle))
+      #expect(isTangent(circles[i], sc.innerCircle))
+    }
+    #expect(sc.innerRadius > 0)
+  }
+
+  @Test("Inverted multi-winding chain stays tangent at any phase", arguments: [0.0, 0.7, 2.2])
+  func invertedTangency(phase: Double) {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, windings: 2, gap: 0, phase: phase)
+    let inv = CircleInversion(center: CGPoint(x: 0.4, y: -0.3), radius: 10)
+    guard let result = sc.inverted(through: inv) else {
+      #expect(Bool(false), "Inversion should succeed")
+      return
+    }
+    let circles = result.chainCircles
+    for i in circles.indices {
+      #expect(isTangent(circles[i], circles[(i + 1) % circles.count]))
+      #expect(isTangent(circles[i], result.outerCircle))
+      #expect(isTangent(circles[i], result.innerCircle))
+    }
+  }
+
+  @Test("Focus makes the chosen circle largest", arguments: [0, 2, 5])
+  func focusWithWindings(index: Int) {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, windings: 2)
+    #expect(sc.focused(on: index, magnification: 3)?.largestIndex == index)
+  }
+
+  /// Internal or external tangency, relative to the larger radius.
+  private func isTangent(_ a: Circle2D, _ b: Circle2D) -> Bool {
+    let d = hypot(a.center.x - b.center.x, a.center.y - b.center.y)
+    let tolerance = 1e-6 * max(a.radius, b.radius)
+    return abs(d - (a.radius + b.radius)) < tolerance
+      || abs(d - abs(a.radius - b.radius)) < tolerance
   }
 }

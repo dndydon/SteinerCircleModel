@@ -1,13 +1,15 @@
+/// SteinerCircle
 /// Pure geometry for a Steiner chain of N equal circles packed
 /// between an outer circle and an inner circle.
 ///
 /// Given:
 ///   - `outerRadius` R — radius of the bounding circle
 ///   - `circleCount` N — number of chain circles
+///   - `windings` m — turns the chain makes around the center
 ///   - `gap` — spacing factor (0 = tangent, approaching 1 = maximally spaced)
 ///
 /// Derived:
-///   - θ = π/N  (half the angular spacing between adjacent centers)
+///   - θ = mπ/N  (half the angular spacing between adjacent centers)
 ///   - ρ_t = R·sinθ/(1+sinθ) — tangent-case chain circle radius
 ///   - ρ = ρ_t·(1−gap) — chain circle radius adjusted for gap
 ///   - d = R − ρ — center ring distance (chain circles tangent to outer)
@@ -21,16 +23,23 @@ public struct SteinerCircle: Sendable {
 
   public let outerRadius: CGFloat
   public let circleCount: Int
+  /// Number of turns the chain makes around the center before closing.
+  /// Neighbors (index i and i + 1) stay tangent; with more than one turn,
+  /// non-neighboring circles overlap. Clamped to 1...(circleCount − 1)/2.
+  /// When `windings` and `circleCount` share a factor, the chain repeats a
+  /// smaller chain and circles coincide.
+  public let windings: Int
   public let gap: CGFloat
   /// Rotation (radians) applied to every chain circle center.
   /// By Steiner's porism, the chain stays tangent at any phase.
   public let phase: CGFloat
 
-  public init(outerRadius: CGFloat, circleCount: Int, gap: CGFloat = 0.001,
-              phase: CGFloat = 0) {
+  public init(outerRadius: CGFloat, circleCount: Int, windings: Int = 1,
+              gap: CGFloat = 0.001, phase: CGFloat = 0) {
     self.outerRadius = outerRadius
     self.circleCount = max(1, circleCount)
-    self.gap = max(gap, 0.001)
+    self.windings = min(max(1, windings), max(1, (self.circleCount - 1) / 2))
+    self.gap = max(gap, 0)
     self.phase = phase
   }
 
@@ -38,7 +47,7 @@ public struct SteinerCircle: Sendable {
 
   /// Half the angular spacing between adjacent chain circle centers.
   public var theta: CGFloat {
-    CGFloat.pi / CGFloat(circleCount)
+    CGFloat.pi * CGFloat(windings) / CGFloat(circleCount)
   }
 
   /// Chain circle radius in the tangent (no-gap) case.
@@ -70,9 +79,9 @@ public struct SteinerCircle: Sendable {
 
   /// Angular position (radians) of the i-th chain circle center (0-based).
   /// Circle 0 is at the top (12 o'clock / -π/2) when `phase` is 0.
+  /// Consecutive indices are 2θ apart, so the chain wraps `windings` times.
   public func centerAngle(at index: Int) -> CGFloat {
-    let step = 2 * CGFloat.pi / CGFloat(circleCount)
-    return -.pi / 2 + phase + step * CGFloat(index)
+    -.pi / 2 + phase + 2 * theta * CGFloat(index)
   }
 
   /// Center point of the i-th chain circle (0-based), in a coordinate
@@ -132,6 +141,7 @@ public struct SteinerCircle: Sendable {
 
   /// Index of the chain circle containing `point`, or nil.
   /// `point` is in chain coordinates (outer circle centered at the origin).
+  /// Where circles overlap (more than one winding), returns the lowest index.
   public func chainIndex(containing point: CGPoint) -> Int? {
     chainCircles.firstIndex { $0.contains(point) }
   }
@@ -193,7 +203,7 @@ public struct SteinerCircle: Sendable {
 extension SteinerCircle: CustomStringConvertible, CustomDebugStringConvertible {
   public var description: String {
     """
-    SteinerCircle(count: \(circleCount), R: \(outerRadius), gap: \(gap))
+    SteinerCircle(count: \(circleCount), windings: \(windings), R: \(outerRadius), gap: \(gap))
       theta: \(theta) rad, rho: \(rho), innerRadius: \(innerRadius)
     """
   }

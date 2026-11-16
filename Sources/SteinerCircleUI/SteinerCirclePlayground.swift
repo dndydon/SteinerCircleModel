@@ -11,6 +11,7 @@ import SwiftUI
 
 struct SteinerCircleDemo: View {
   @State private var circleCount: Double = 6
+  @State private var windings = 1
   @State private var gap: Double = 0.001
   @State private var inversionOffset: CGSize = .zero
   @State private var dragStartOffset: CGSize?
@@ -28,9 +29,24 @@ struct SteinerCircleDemo: View {
     SteinerCircle(
       outerRadius: outerRadius,
       circleCount: Int(circleCount),
+      windings: windings,
       gap: gap,
       phase: phase
     )
+  }
+
+  /// Largest winding count the model allows for the current circle count.
+  private var maxWindings: Int {
+    max(1, (Int(circleCount) - 1) / 2)
+  }
+
+  /// Winding label, noting when the chain retraces a smaller one.
+  private var windingsLabel: String {
+    var a = Int(circleCount), b = windings
+    while b != 0 { (a, b) = (b, a % b) }
+    return a > 1
+      ? "Windings: \(windings) (shares a factor with \(Int(circleCount)); circles coincide)"
+      : "Windings: \(windings)"
   }
 
   /// Chain phase at `date`, wrapped to one full turn; the chain looks
@@ -91,10 +107,13 @@ struct SteinerCircleDemo: View {
           range: 2...20,
           step: 1
         )
+        Stepper(windingsLabel, value: $windings, in: 1...maxWindings)
+          .font(.caption)
+          .monospacedDigit()
         LabeledSlider(
           label: "Gap: \(String(format: "%.3f", gap))",
           value: $gap,
-          range: 0.001...0.5
+          range: 0...0.5
         )
         Toggle("Circle Inversion", isOn: $showInversion)
           .font(.caption)
@@ -106,6 +125,9 @@ struct SteinerCircleDemo: View {
           .opacity(showInversion ? 1.0 : 0.0)
       }
       .padding(.horizontal)
+      .onChange(of: circleCount) {
+        windings = min(windings, maxWindings)
+      }
     }
     .padding()
     .frame(width: 400)

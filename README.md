@@ -45,6 +45,22 @@ let point = chain.centerPoint(at: 0)  // CGPoint
 let circles = chain.chainCircles  // [Circle2D]
 ```
 
+Pass `gap: 0` for exactly tangent neighbors.
+
+### Multiple Windings
+
+`windings` wraps the chain around the center more than once, forming a star.
+Each circle stays tangent to its neighbors (index *i* and *i* + 1) and to both
+boundaries; non-neighbors overlap.
+
+```swift
+// 7 circles over 2 turns
+let star = SteinerCircle(outerRadius: 10, circleCount: 7, windings: 2)
+```
+
+`windings` is clamped to 1...(*n* − 1)/2. Choose a count and winding number
+with no common factor; otherwise the chain retraces a smaller one and circles coincide.
+
 ### Circle Inversion
 
 Inversion transforms a concentric Steiner chain (equal circles) into a
@@ -142,6 +158,7 @@ struct SteinerChainView: View {
 both the concentric chain and the circle-inversion transform directly in Xcode's canvas.
 
 - **Circles** / **Gap** sliders adjust the chain geometry in real time
+- **Windings** stepper wraps the chain into a star (up to (*n* − 1)/2 turns)
 - **Circle Inversion** toggle switches to the inverted (non-concentric) view
 - **Rotate Chain** toggle animates `phase`
 - **Drag** on the canvas to move the inversion center and see the cascade effect;
@@ -200,17 +217,26 @@ Done in 1.2.0:
 3. ~~**Focus by index**~~ — `inversion(focusingOn:magnification:)`, `focused(on:magnification:)`.
 4. ~~**Largest and smallest index**~~ — `largestIndex`, `smallestIndex`.
 
-Still open:
+Planned for 1.3.0:
 
-5. **`Codable` and `Hashable`** on `SteinerCircle` and `Circle2D`.
-6. **Move and scale `Circle2D`**, and build a chain inside a given circle (for nesting).
-7. **Friendlier inversion failures** — `inverted(through:)` returns `nil` if any one circle passes through the inversion center, which can blank a frame mid-drag. Report which circle failed, or return a line in its place.
-8. **Tangent points and per-circle spin angle** for games and connector lines.
-9. **Multiple windings** — *n* circles over *m* turns, a small change to the `theta` formula.
-10. **Number types beyond `CGFloat`** — `Float`/SIMD for RealityKit, `Double` for Charts.
+- ~~**Exact tangency**~~ — `gap` is now clamped to at least 0 (was 0.001), so `gap: 0`
+  makes neighboring chain circles touch. The default stays 0.001.
+- ~~**9. Multiple windings**~~ — `windings`: *n* circles over *m* turns, with θ = *m*π/*n*.
+- **5. `Codable` and `Hashable`** on `SteinerCircle`, `Circle2D`, `CircleInversion`,
+  and `InvertedSteinerChain`. Decoding a `SteinerCircle` applies the same clamping as `init`.
+- **6. Move and scale `Circle2D`**, and build a chain inside a given circle (for nesting):
+  `InvertedSteinerChain.fitted(in: Circle2D)` and `SteinerCircle.placed(in: Circle2D)`.
+- **10. Number types beyond `CGFloat`** — `Float`/SIMD conversions for RealityKit.
+  `Double` already works through Swift's implicit `CGFloat` conversion.
 
-Also: `gap` is clamped to at least 0.001, so neighboring chain circles never
-exactly touch. Games and connector lines want exact tangency.
+Planned for 1.4.0:
+
+- **8. Tangent points and per-circle spin angle** for games and connector lines —
+  `spinAngle(at:rollingOn:)` with `.outer` or `.inner` as the fixed boundary.
+- **7. Friendlier inversion failures** — `inverted(through:)` returns `nil` if any one circle
+  passes through the inversion center, which can blank a frame mid-drag. Add a
+  typed-throws variant that reports which circle failed; the optional API stays.
+  Returning a line in its place is deferred.
 
 ## License
 
