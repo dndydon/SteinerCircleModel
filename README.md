@@ -303,8 +303,9 @@ Planned for 1.3.0:
 - ~~**Exact tangency**~~ — `gap` is now clamped to at least 0 (was 0.001), so `gap: 0`
   makes neighboring chain circles touch. The default stays 0.001.
 - ~~**9. Multiple windings**~~ — `windings`: *n* circles over *m* turns, with θ = *m*π/*n*.
-- **5. `Codable` and `Hashable`** on `SteinerCircle`, `Circle2D`, `CircleInversion`,
-  and `InvertedSteinerChain`. Decoding a `SteinerCircle` applies the same clamping as `init`.
+- ~~**5. `Codable` and `Hashable`**~~ on `SteinerCircle`, `Circle2D`, `CircleInversion`,
+  and `InvertedSteinerChain`. Decoding a `SteinerCircle` applies the same clamping as `init`,
+  and missing `windings`, `gap`, or `phase` take their defaults.
 - **6. Move and scale `Circle2D`**, and build a chain inside a given circle (for nesting):
   `InvertedSteinerChain.fitted(in: Circle2D)` and `SteinerCircle.placed(in: Circle2D)`.
 - **10. Number types beyond `CGFloat`** — `Float`/SIMD conversions for RealityKit.

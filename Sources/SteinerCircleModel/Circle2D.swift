@@ -21,6 +21,17 @@ public struct Circle2D: Sendable {
 
 extension Circle2D: Equatable {}
 
+extension Circle2D: Hashable {
+  // CGPoint isn't Hashable, so hash its components.
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(center.x)
+    hasher.combine(center.y)
+    hasher.combine(radius)
+  }
+}
+
+extension Circle2D: Codable {}
+
 // MARK: - Hit Testing
 
 extension Circle2D {

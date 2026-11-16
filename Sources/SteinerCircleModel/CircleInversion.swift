@@ -66,6 +66,17 @@ public struct CircleInversion: Sendable {
   }
 }
 
+extension CircleInversion: Hashable {
+  // CGPoint isn't Hashable, so hash its components.
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(center.x)
+    hasher.combine(center.y)
+    hasher.combine(radius)
+  }
+}
+
+extension CircleInversion: Codable {}
+
 extension CircleInversion: CustomStringConvertible {
   public var description: String {
     "CircleInversion(center: (\(center.x), \(center.y)), radius: \(radius))"

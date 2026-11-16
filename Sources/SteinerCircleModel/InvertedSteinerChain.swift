@@ -69,6 +69,8 @@ public struct InvertedSteinerChain: Sendable {
   }
 }
 
+extension InvertedSteinerChain: Hashable, Codable {}
+
 extension InvertedSteinerChain: CustomStringConvertible {
   public var description: String {
     """

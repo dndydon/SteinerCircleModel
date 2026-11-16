@@ -198,6 +198,29 @@ public struct SteinerCircle: Sendable {
   }
 }
 
+// MARK: - Hashable and Codable
+
+extension SteinerCircle: Hashable {}
+
+extension SteinerCircle: Codable {
+  private enum CodingKeys: String, CodingKey {
+    case outerRadius, circleCount, windings, gap, phase
+  }
+
+  /// Decoding goes through `init`, so the same clamping applies.
+  /// Missing `windings`, `gap`, and `phase` take their `init` defaults.
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.init(
+      outerRadius: try container.decode(CGFloat.self, forKey: .outerRadius),
+      circleCount: try container.decode(Int.self, forKey: .circleCount),
+      windings: try container.decodeIfPresent(Int.self, forKey: .windings) ?? 1,
+      gap: try container.decodeIfPresent(CGFloat.self, forKey: .gap) ?? 0.001,
+      phase: try container.decodeIfPresent(CGFloat.self, forKey: .phase) ?? 0
+    )
+  }
+}
+
 // MARK: - CustomStringConvertible
 
 extension SteinerCircle: CustomStringConvertible, CustomDebugStringConvertible {

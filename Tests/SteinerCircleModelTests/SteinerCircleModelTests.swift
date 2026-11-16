@@ -252,3 +252,52 @@ struct WindingsTests {
       || abs(d - abs(a.radius - b.radius)) < tolerance
   }
 }
+
+// MARK: - Codable and Hashable
+
+@Suite("Codable and Hashable")
+struct CodableHashableTests {
+
+  private func roundTrip<T: Codable>(_ value: T) throws -> T {
+    try JSONDecoder().decode(T.self, from: JSONEncoder().encode(value))
+  }
+
+  @Test("Every type survives a JSON round trip")
+  func roundTrips() throws {
+    let circle = Circle2D(center: CGPoint(x: 1.5, y: -2), radius: 3)
+    let inversion = CircleInversion(center: CGPoint(x: 0.4, y: 0.1), radius: 8)
+    let chain = SteinerCircle(outerRadius: 10, circleCount: 7, windings: 2, gap: 0.1, phase: 0.6)
+    let inverted = try #require(chain.inverted(through: inversion))
+    #expect(try roundTrip(circle) == circle)
+    #expect(try roundTrip(inversion) == inversion)
+    #expect(try roundTrip(chain) == chain)
+    #expect(try roundTrip(inverted) == inverted)
+  }
+
+  @Test("Decoding a SteinerCircle applies init's clamping")
+  func decodeClamps() throws {
+    let json = Data(#"{"outerRadius": 10, "circleCount": 6, "windings": 9, "gap": -1, "phase": 0}"#.utf8)
+    let chain = try JSONDecoder().decode(SteinerCircle.self, from: json)
+    #expect(chain.windings == 2)
+    #expect(chain.gap == 0)
+  }
+
+  @Test("Missing optional keys take init's defaults")
+  func decodeDefaults() throws {
+    let json = Data(#"{"outerRadius": 10, "circleCount": 6}"#.utf8)
+    let chain = try JSONDecoder().decode(SteinerCircle.self, from: json)
+    #expect(chain == SteinerCircle(outerRadius: 10, circleCount: 6))
+  }
+
+  @Test("Equal values hash equally and deduplicate in a Set")
+  func hashing() {
+    let a = Circle2D(center: CGPoint(x: 1, y: 2), radius: 3)
+    let b = Circle2D(center: CGPoint(x: 1, y: 2), radius: 3)
+    let c = Circle2D(center: CGPoint(x: 2, y: 1), radius: 3)
+    #expect(Set([a, b, c]).count == 2)
+    #expect(Set([CircleInversion(center: .zero, radius: 1),
+                 CircleInversion(center: .zero, radius: 1)]).count == 1)
+    #expect(Set([SteinerCircle(outerRadius: 1, circleCount: 6),
+                 SteinerCircle(outerRadius: 1, circleCount: 6, phase: 0.1)]).count == 2)
+  }
+}
