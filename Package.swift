@@ -24,13 +24,15 @@ let package = Package(
       name: "SteinerCircleModel"),
     .target(
       name: "SteinerCircleUI",
-      dependencies: ["SteinerCircleModel"]),
+      dependencies: ["SteinerCircleModel"],
+      path: "Sources/Demo playgrounds/SteinerCircleUI"),
     .target(
       name: "SoddyHexletModel",
       dependencies: ["SteinerCircleModel"]),
     .target(
       name: "SoddyHexletUI",
-      dependencies: ["SoddyHexletModel"]),
+      dependencies: ["SoddyHexletModel"],
+      path: "Sources/Demo playgrounds/SoddyHexletUI"),
     .testTarget(
       name: "SteinerCircleModelTests",
       dependencies: ["SteinerCircleModel"]),
