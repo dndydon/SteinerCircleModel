@@ -68,6 +68,24 @@ extension Circle2D {
   }
 }
 
+// MARK: - Float Conversion
+
+extension Circle2D {
+  /// A circle from single-precision values, such as RealityKit positions.
+  public init(center: SIMD2<Float>, radius: Float) {
+    self.init(center: CGPoint(x: CGFloat(center.x), y: CGFloat(center.y)),
+              radius: CGFloat(radius))
+  }
+
+  /// `center` as single precision, for RealityKit transforms.
+  public var floatCenter: SIMD2<Float> {
+    SIMD2<Float>(Float(center.x), Float(center.y))
+  }
+
+  /// `radius` as single precision, for RealityKit meshes and scales.
+  public var floatRadius: Float { Float(radius) }
+}
+
 extension Circle2D: CustomStringConvertible {
   public var description: String {
     "Circle2D(center: (\(center.x), \(center.y)), radius: \(radius))"

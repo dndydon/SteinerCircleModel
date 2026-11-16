@@ -371,3 +371,24 @@ struct PlacementTests {
       || abs(d - abs(a.radius - b.radius)) < tolerance
   }
 }
+
+// MARK: - Float Conversion
+
+@Suite("Float Conversion")
+struct FloatConversionTests {
+
+  @Test("floatCenter and floatRadius match the CGFloat values")
+  func toFloat() {
+    let c = Circle2D(center: CGPoint(x: 1.5, y: -2.25), radius: 0.75)
+    #expect(c.floatCenter == SIMD2<Float>(1.5, -2.25))
+    #expect(c.floatRadius == 0.75)
+  }
+
+  @Test("init(center:radius:) from Float round-trips")
+  func fromFloat() {
+    let c = Circle2D(center: SIMD2<Float>(3, 4), radius: 0.5)
+    #expect(c == Circle2D(center: CGPoint(x: 3, y: 4), radius: 0.5))
+    #expect(c.floatCenter == SIMD2<Float>(3, 4))
+    #expect(c.floatRadius == 0.5)
+  }
+}

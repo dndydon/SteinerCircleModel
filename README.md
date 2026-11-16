@@ -21,7 +21,7 @@ All model types are `Sendable`, and the package builds in Swift 6 language mode.
 | Type | Purpose |
 |------|---------|
 | `SteinerCircle` | Compute geometry for N equal circles in a concentric chain |
-| `Circle2D` | Simple circle value type (center + radius) |
+| `Circle2D` | Simple circle value type (center + radius), with `Float` conversions for RealityKit |
 | `CircleInversion` | Möbius circle inversion — maps circles to circles |
 | `InvertedSteinerChain` | Result of inverting a concentric chain into a non-concentric one |
 | `Path.init(_:scale:offset:)` | (`SteinerCircleUI`) A SwiftUI `Path` for a `Circle2D` |
@@ -156,6 +156,19 @@ let half = host.scaled(by: 0.5, about: host.center)
 
 `placed(in:)` returns an `InvertedSteinerChain`, the type for a chain at a
 position; its circles stay concentric and equal.
+
+### Float and SIMD
+
+The model uses `CGFloat`; `Double` values convert implicitly. For RealityKit,
+convert to and from `SIMD2<Float>` and `Float`:
+
+```swift
+let circle = chain.chainCircles[0]
+entity.position = SIMD3(circle.floatCenter, 0)
+entity.scale = SIMD3(repeating: circle.floatRadius)
+
+let fromScene = Circle2D(center: SIMD2<Float>(0.1, 0.2), radius: 0.05)
+```
 
 ### SwiftUI Example
 
@@ -327,7 +340,7 @@ Done in 1.2.0:
 3. ~~**Focus by index**~~ — `inversion(focusingOn:magnification:)`, `focused(on:magnification:)`.
 4. ~~**Largest and smallest index**~~ — `largestIndex`, `smallestIndex`.
 
-Planned for 1.3.0:
+Done in 1.3.0:
 
 - ~~**Exact tangency**~~ — `gap` is now clamped to at least 0 (was 0.001), so `gap: 0`
   makes neighboring chain circles touch. The default stays 0.001.
@@ -338,8 +351,9 @@ Planned for 1.3.0:
 - ~~**6. Move and scale `Circle2D`**~~ (`offsetBy(dx:dy:)`, `scaled(by:about:)`), and build a
   chain inside a given circle (for nesting): `InvertedSteinerChain.fitted(in: Circle2D)` and
   `SteinerCircle.placed(in: Circle2D)`.
-- **10. Number types beyond `CGFloat`** — `Float`/SIMD conversions for RealityKit.
-  `Double` already works through Swift's implicit `CGFloat` conversion.
+- ~~**10. Number types beyond `CGFloat`**~~ — `Circle2D.floatCenter`, `floatRadius`, and
+  `init(center: SIMD2<Float>, radius: Float)` for RealityKit. `Double` already works through
+  Swift's implicit `CGFloat` conversion.
 
 Planned for 1.4.0:
 
