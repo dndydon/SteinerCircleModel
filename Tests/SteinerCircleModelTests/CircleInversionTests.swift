@@ -220,3 +220,111 @@ struct SteinerCircleInversionTests {
     #expect(sc.innerCircle.radius == sc.innerRadius)
   }
 }
+
+// MARK: - Hit Testing, Fitting, and Focus
+
+@Suite("Hit Testing, Fitting, and Focus")
+struct ChainToolsTests {
+
+  // MARK: - Hit Testing
+
+  @Test("Circle2D contains interior and boundary points, not exterior")
+  func circleContains() {
+    let c = Circle2D(center: CGPoint(x: 1, y: 1), radius: 2)
+    #expect(c.contains(CGPoint(x: 1, y: 1)))
+    #expect(c.contains(CGPoint(x: 3, y: 1)))
+    #expect(!c.contains(CGPoint(x: 3.01, y: 1)))
+  }
+
+  @Test("chainIndex finds each chain circle by its center")
+  func chainIndexByCenter() {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, phase: 0.4)
+    for i in 0..<7 {
+      #expect(sc.chainIndex(containing: sc.centerPoint(at: i)) == i)
+    }
+    #expect(sc.chainIndex(containing: .zero) == nil)
+  }
+
+  @Test("Inverted chainIndex finds each inverted circle by its center")
+  func invertedChainIndex() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 6)
+    let chain = try #require(sc.inverted(through: CircleInversion(center: CGPoint(x: 1, y: 2), radius: 10)))
+    for (i, circle) in chain.chainCircles.enumerated() {
+      #expect(chain.chainIndex(containing: circle.center) == i)
+    }
+  }
+
+  // MARK: - Fitting
+
+  @Test("Inversion from inside the inner circle makes innerCircle the bounding circle")
+  func boundingCircleSwaps() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 6)
+    let chain = try #require(sc.inverted(through: CircleInversion(center: CGPoint(x: 1, y: 0), radius: 10)))
+    #expect(chain.boundingCircle == chain.innerCircle)
+  }
+
+  @Test("fitted inscribes the bounding circle in the rect, for any inversion center",
+        arguments: [CGPoint.zero, CGPoint(x: 2, y: -1), CGPoint(x: -2.5, y: 1.5)])
+  func fittedBoundingCircle(center: CGPoint) throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 8, gap: 0.1)
+    let chain = try #require(sc.inverted(through: CircleInversion(center: center, radius: 10)))
+    let rect = CGRect(x: 20, y: 40, width: 300, height: 200)
+    let bound = chain.fitted(in: rect).boundingCircle
+    #expect(abs(bound.center.x - rect.midX) < 1e-9)
+    #expect(abs(bound.center.y - rect.midY) < 1e-9)
+    #expect(abs(bound.radius - 100) < 1e-9)
+  }
+
+  @Test("fitted preserves tangency")
+  func fittedPreservesTangency() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, gap: 0.2)
+    let chain = try #require(sc.inverted(through: CircleInversion(center: CGPoint(x: 1.5, y: -0.8), radius: 10)))
+    let fitted = chain.fitted(in: CGRect(x: 0, y: 0, width: 360, height: 360))
+    for circle in fitted.chainCircles {
+      #expect(isTangent(circle, fitted.outerCircle))
+      #expect(isTangent(circle, fitted.innerCircle))
+    }
+  }
+
+  // MARK: - Focus
+
+  @Test("Focusing makes the chosen circle largest", arguments: [0, 2, 5])
+  func focusLargest(index: Int) throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 6, phase: 0.7)
+    let chain = try #require(sc.focused(on: index, magnification: 3))
+    #expect(chain.largestIndex == index)
+  }
+
+  @Test("Focus achieves the requested magnification", arguments: [1.5, 3.0, 10.0])
+  func focusMagnification(magnification: Double) throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 7, gap: 0.1)
+    let chain = try #require(sc.focused(on: 3, magnification: magnification))
+    let ratio = chain.chainCircles[chain.largestIndex].radius
+      / chain.chainCircles[chain.smallestIndex].radius
+    #expect(abs(ratio - magnification) / magnification < 1e-6)
+  }
+
+  @Test("Magnification of 1 keeps all circles equal; index wraps around the ring")
+  func focusEdgeCases() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 5)
+    #expect(sc.inversion(focusingOn: 2, magnification: 1).center == .zero)
+    #expect(sc.inversion(focusingOn: 7, magnification: 2).center
+            == sc.inversion(focusingOn: 2, magnification: 2).center)
+    #expect(sc.inversion(focusingOn: -1, magnification: 2).center
+            == sc.inversion(focusingOn: 4, magnification: 2).center)
+  }
+
+  @Test("Smallest circle is opposite the focused one for an even count")
+  func smallestOpposite() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 8)
+    let chain = try #require(sc.focused(on: 1, magnification: 4))
+    #expect(chain.smallestIndex == 5)
+  }
+
+  private func isTangent(_ a: Circle2D, _ b: Circle2D) -> Bool {
+    let d = hypot(a.center.x - b.center.x, a.center.y - b.center.y)
+    let tolerance = 1e-6 * max(a.radius, b.radius)
+    return abs(d - (a.radius + b.radius)) < tolerance
+      || abs(d - abs(a.radius - b.radius)) < tolerance
+  }
+}

@@ -13,12 +13,16 @@ struct SteinerCircleDemo: View {
   @State private var circleCount: Double = 6
   @State private var gap: Double = 0.001
   @State private var inversionOffset: CGSize = .zero
+  @State private var dragStartOffset: CGSize?
   @State private var showInversion = false
   @State private var isRotating = false
 
   private let outerRadius: CGFloat = 140
+  private let canvasSize: CGFloat = 360
   /// Chain rotation speed in radians per second.
   private let rotationSpeed: Double = 0.5
+  /// Largest-to-smallest size ratio when tapping a circle to focus it.
+  private let focusMagnification: CGFloat = 4
 
   private func model(phase: CGFloat) -> SteinerCircle {
     SteinerCircle(
@@ -29,20 +33,24 @@ struct SteinerCircleDemo: View {
     )
   }
 
+  /// Chain phase at `date`, wrapped to one full turn; the chain looks
+  /// identical after every turn.
+  private func phase(at date: Date) -> CGFloat {
+    guard isRotating else { return 0 }
+    let elapsed = date.timeIntervalSinceReferenceDate * rotationSpeed
+    return CGFloat(elapsed.truncatingRemainder(dividingBy: 2 * .pi))
+  }
+
   var body: some View {
     VStack(spacing: 16) {
       Text(showInversion ? "Inverted Steiner Chain" : "Steiner Circle")
         .font(.title2.bold())
 
       TimelineView(.animation(paused: !isRotating)) { timeline in
-        // Wrap the phase so it stays small; the chain looks identical
-        // after every full turn.
-        let elapsed = timeline.date.timeIntervalSinceReferenceDate * rotationSpeed
-        let phase = isRotating ? CGFloat(elapsed.truncatingRemainder(dividingBy: 2 * .pi)) : 0
+        let sc = model(phase: phase(at: timeline.date))
 
         Canvas { context, size in
           let center = CGPoint(x: size.width / 2, y: size.height / 2)
-          let sc = model(phase: phase)
 
           if showInversion {
             drawInverted(context: context, center: center, sc: sc)
@@ -51,21 +59,29 @@ struct SteinerCircleDemo: View {
           }
         }
       }
-      .frame(width: 360, height: 360)
+      .frame(width: canvasSize, height: canvasSize)
       .background(Color.black.opacity(0.05))
       .clipShape(RoundedRectangle(cornerRadius: 8))
       .gesture(
         DragGesture()
           .onChanged { value in
-            if showInversion {
-              inversionOffset = value.translation
-            }
+            guard showInversion else { return }
+            let start = dragStartOffset ?? inversionOffset
+            dragStartOffset = start
+            inversionOffset = CGSize(width: start.width + value.translation.width,
+                                     height: start.height + value.translation.height)
+          }
+          .onEnded { _ in
+            dragStartOffset = nil
           }
       )
       .onTapGesture(count: 2) {
         if showInversion {
           inversionOffset = .zero
         }
+      }
+      .onTapGesture { location in
+        focusCircle(at: location)
       }
       
       VStack(spacing: 10) {
@@ -84,7 +100,7 @@ struct SteinerCircleDemo: View {
           .font(.caption)
         Toggle("Rotate Chain", isOn: $isRotating)
           .font(.caption)
-        Text("Drag to move inversion center")
+        Text("Drag to move inversion center · Tap a circle to focus it")
           .font(.caption2)
           .foregroundStyle(.secondary)
           .opacity(showInversion ? 1.0 : 0.0)
@@ -114,42 +130,65 @@ struct SteinerCircleDemo: View {
 
   private func drawInverted(context: GraphicsContext, center: CGPoint,
                             sc: SteinerCircle) {
-      // Inversion center offset from the origin, clamped inside the inner circle
-    let maxOffset = max(sc.innerRadius * 0.9, 1)
-    let dx = min(max(inversionOffset.width, -maxOffset), maxOffset)
-    let dy = min(max(inversionOffset.height, -maxOffset), maxOffset)
-    let invCenter = CGPoint(x: dx, y: dy)
-    let inversion = CircleInversion(center: invCenter, radius: outerRadius)
-
-    guard let inverted = sc.inverted(through: inversion) else { return }
-
-      // Find the bounding extent of the inverted outer circle to scale-to-fit
-    let allCircles = [inverted.outerCircle, inverted.innerCircle] + inverted.chainCircles
-    let maxExtent = allCircles.map { circle in
-      max(abs(circle.center.x) + circle.radius,
-          abs(circle.center.y) + circle.radius)
-    }.max() ?? outerRadius
-    let scale = maxExtent > outerRadius ? outerRadius / maxExtent : 1.0
+    guard let fitted = fittedInvertedChain(sc, center: center) else { return }
 
       // Draw inverted outer circle
-    drawCircle(context: context, center: center, circle: inverted.outerCircle,
-               scale: scale, fill: nil, stroke: .blue)
+    drawCircle(context: context, center: .zero, circle: fitted.outerCircle,
+               scale: 1, fill: nil, stroke: .blue)
 
       // Draw inverted inner circle
-    drawCircle(context: context, center: center, circle: inverted.innerCircle,
-               scale: scale, fill: nil, stroke: .red)
+    drawCircle(context: context, center: .zero, circle: fitted.innerCircle,
+               scale: 1, fill: nil, stroke: .red)
 
       // Draw inverted chain circles
-    for circle in inverted.chainCircles {
-      drawCircle(context: context, center: center, circle: circle,
-                 scale: scale, fill: .orange.opacity(0.3), stroke: .orange)
+    for circle in fitted.chainCircles {
+      drawCircle(context: context, center: .zero, circle: circle,
+                 scale: 1, fill: .orange.opacity(0.3), stroke: .orange)
     }
 
-      // Mark inversion center
-    let dot = Path(Circle2D(center: invCenter, radius: 3 / scale),
-                   scale: scale, offset: center)
+      // Drag handle. The inversion center is a point in the original
+      // (concentric) coordinates and has no image after inversion, so
+      // show it where the drag puts it rather than inside the drawing.
+    let invCenter = clampedInversionCenter(sc)
+    let dot = Path(Circle2D(center: invCenter, radius: 3), offset: center)
     context.fill(dot, with: .color(.white))
     context.stroke(dot, with: .color(.primary), lineWidth: 1)
+  }
+
+  /// Inversion center offset from the origin, limited by distance (not per
+  /// axis) so it stays inside the inner circle in every direction.
+  private func clampedInversionCenter(_ sc: SteinerCircle) -> CGPoint {
+    let maxOffset = max(sc.innerRadius * 0.9, 1)
+    let length = hypot(inversionOffset.width, inversionOffset.height)
+    let limit = length > maxOffset ? maxOffset / length : 1
+    return CGPoint(x: inversionOffset.width * limit,
+                   y: inversionOffset.height * limit)
+  }
+
+  /// The inverted chain fitted to the canvas, so its bounding circle stays
+  /// fixed while the inner circle and chain move.
+  private func fittedInvertedChain(_ sc: SteinerCircle,
+                                   center: CGPoint) -> InvertedSteinerChain? {
+    let inversion = CircleInversion(center: clampedInversionCenter(sc), radius: outerRadius)
+    guard let inverted = sc.inverted(through: inversion) else { return nil }
+
+    let rect = CGRect(x: center.x - outerRadius, y: center.y - outerRadius,
+                      width: outerRadius * 2, height: outerRadius * 2)
+    return inverted.fitted(in: rect)
+  }
+
+    // MARK: - Focus
+
+  /// Focuses the tapped chain circle by moving the inversion center toward it.
+  private func focusCircle(at location: CGPoint) {
+    guard showInversion else { return }
+    let sc = model(phase: phase(at: .now))
+    let center = CGPoint(x: canvasSize / 2, y: canvasSize / 2)
+    guard let fitted = fittedInvertedChain(sc, center: center),
+          let index = fitted.chainIndex(containing: location) else { return }
+
+    let focus = sc.inversion(focusingOn: index, magnification: focusMagnification)
+    inversionOffset = CGSize(width: focus.center.x, height: focus.center.y)
   }
 
     // MARK: - Drawing Helpers

@@ -81,6 +81,38 @@ let chain = SteinerCircle(outerRadius: 10, circleCount: 8, phase: .pi / 8)
 The model is a pure function of `phase` — it holds no time or animation state.
 Your app owns timing: pausing, resuming, easing, or snapping back to zero.
 
+### Focus, Fitting, and Hit Testing
+
+Focus a circle by index instead of placing the inversion center by hand.
+`magnification` is the ratio of the largest to the smallest chain circle.
+
+```swift
+let chain = SteinerCircle(outerRadius: 10, circleCount: 8)
+
+if let focused = chain.focused(on: 3, magnification: 4) {
+  focused.largestIndex   // 3
+  focused.smallestIndex  // 7 — the circle opposite
+
+  // Scale and center the result so its bounding circle fills a view.
+  // The bounding circle stays fixed as the focus changes; only the
+  // inner circle and chain move.
+  let fitted = focused.fitted(in: CGRect(x: 0, y: 0, width: 360, height: 360))
+
+  // Hit-test a tap in the same (view) coordinates.
+  let tapped = fitted.chainIndex(containing: tapLocation)  // Int?
+}
+
+// Or get the inversion itself, e.g. to animate toward it.
+let inversion = chain.inversion(focusingOn: 3, magnification: 4)
+```
+
+`fittingTransform(in:)` returns the `CGAffineTransform` that `fitted(in:)` applies,
+for mapping other points into view coordinates (or back, with `.inverted()`).
+
+When the inversion center is inside the inner circle, inversion swaps the
+boundaries: `innerCircle` becomes the enclosing circle. `boundingCircle`
+always returns whichever one encloses the chain.
+
 ### SwiftUI Example
 
 ```swift
@@ -112,7 +144,9 @@ both the concentric chain and the circle-inversion transform directly in Xcode's
 - **Circles** / **Gap** sliders adjust the chain geometry in real time
 - **Circle Inversion** toggle switches to the inverted (non-concentric) view
 - **Rotate Chain** toggle animates `phase`
-- **Drag** on the canvas to move the inversion center and see the cascade effect
+- **Drag** on the canvas to move the inversion center and see the cascade effect;
+  the outer boundary stays fixed while the inner circle and chain move
+- **Tap** a chain circle to focus it
 - **Double-click** to re-center the inversion view
 
 Open the file in Xcode and choose **Editor > Canvas** to use it.
@@ -159,10 +193,15 @@ Not a good fit: data where circle size must stand for a quantity
 
 ### API gaps, by how many apps need them
 
-1. **Hit-testing** — `Circle2D.contains(_:)` and "which chain circle contains this point".
-2. **Fit to a rectangle** — bounding box and scale-to-fit transform. The demo does this by hand today.
-3. **Focus by index** — `focused(on:magnification:)`: point the inversion offset at item *k*'s angle and solve for its distance.
-4. **Largest and smallest index** of an inverted chain.
+Done in 1.2.0:
+
+1. ~~**Hit-testing**~~ — `Circle2D.contains(_:)`, `chainIndex(containing:)`.
+2. ~~**Fit to a rectangle**~~ — `boundingCircle`, `fittingTransform(in:)`, `fitted(in:)`.
+3. ~~**Focus by index**~~ — `inversion(focusingOn:magnification:)`, `focused(on:magnification:)`.
+4. ~~**Largest and smallest index**~~ — `largestIndex`, `smallestIndex`.
+
+Still open:
+
 5. **`Codable` and `Hashable`** on `SteinerCircle` and `Circle2D`.
 6. **Move and scale `Circle2D`**, and build a chain inside a given circle (for nesting).
 7. **Friendlier inversion failures** — `inverted(through:)` returns `nil` if any one circle passes through the inversion center, which can blank a frame mid-drag. Report which circle failed, or return a line in its place.

@@ -127,6 +127,65 @@ public struct SteinerCircle: Sendable {
       chainCircles: invertedChain
     )
   }
+
+  // MARK: - Hit Testing
+
+  /// Index of the chain circle containing `point`, or nil.
+  /// `point` is in chain coordinates (outer circle centered at the origin).
+  public func chainIndex(containing point: CGPoint) -> Int? {
+    chainCircles.firstIndex { $0.contains(point) }
+  }
+
+  // MARK: - Focus
+
+  /// An inversion that makes chain circle `index` the largest, with
+  /// `magnification` as the ratio of the largest to the smallest circle.
+  ///
+  /// The inversion center moves from the origin toward circle `index`;
+  /// the farther it moves, the larger the ratio. `index` wraps around the
+  /// ring. A magnification of 1 or less returns a centered inversion,
+  /// which leaves all circles equal.
+  public func inversion(focusingOn index: Int, magnification: CGFloat) -> CircleInversion {
+    let k = ((index % circleCount) + circleCount) % circleCount
+    let angle = centerAngle(at: k)
+    func inversion(at distance: CGFloat) -> CircleInversion {
+      CircleInversion(center: CGPoint(x: distance * cos(angle), y: distance * sin(angle)),
+                      radius: outerRadius)
+    }
+    guard circleCount > 1, magnification > 1, innerRadius > 0 else {
+      return inversion(at: 0)
+    }
+
+    // The size ratio rises monotonically from 1 at the origin toward
+    // infinity as the center approaches the inner circle, so bisect.
+    var low: CGFloat = 0
+    var high = innerRadius
+    for _ in 0..<60 {
+      let mid = (low + high) / 2
+      if sizeRatio(through: inversion(at: mid)) < magnification {
+        low = mid
+      } else {
+        high = mid
+      }
+    }
+    return inversion(at: low)
+  }
+
+  /// This chain inverted so circle `index` is the largest, with
+  /// `magnification` as the ratio of the largest to the smallest circle.
+  public func focused(on index: Int, magnification: CGFloat) -> InvertedSteinerChain? {
+    inverted(through: inversion(focusingOn: index, magnification: magnification))
+  }
+
+  /// Ratio of the largest to the smallest inverted chain circle.
+  private func sizeRatio(through inversion: CircleInversion) -> CGFloat {
+    guard let chain = inverted(through: inversion) else { return .infinity }
+    let radii = chain.chainCircles.map(\.radius)
+    guard let largest = radii.max(), let smallest = radii.min(), smallest > 0 else {
+      return .infinity
+    }
+    return largest / smallest
+  }
 }
 
 // MARK: - CustomStringConvertible
