@@ -222,7 +222,7 @@ struct SteinerCircleDemo: View {
     if let fill {
       context.fill(path, with: .color(fill))
     }
-    context.stroke(path, with: .color(stroke), lineWidth: 1.5)
+    context.stroke(path, with: .color(stroke), lineWidth: 1.1)
   }
 }
 

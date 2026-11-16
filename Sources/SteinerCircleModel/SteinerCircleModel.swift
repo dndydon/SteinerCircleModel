@@ -137,6 +137,22 @@ public struct SteinerCircle: Sendable {
     )
   }
 
+  // MARK: - Placement
+
+  /// This chain scaled and moved so its outer circle becomes `circle` —
+  /// for example, to nest a chain inside a circle of another chain.
+  ///
+  /// The result is positioned, so it is returned as an `InvertedSteinerChain`;
+  /// its circles stay concentric and equal, as if inverted about the center.
+  public func placed(in circle: Circle2D) -> InvertedSteinerChain {
+    let scale = circle.radius / outerRadius
+    let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
+                                      tx: circle.center.x, ty: circle.center.y)
+    return InvertedSteinerChain(outerCircle: outerCircle, innerCircle: innerCircle,
+                                chainCircles: chainCircles)
+      .applying(transform)
+  }
+
   // MARK: - Hit Testing
 
   /// Index of the chain circle containing `point`, or nil.

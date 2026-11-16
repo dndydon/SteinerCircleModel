@@ -132,6 +132,31 @@ When the inversion center is inside the inner circle, inversion swaps the
 boundaries: `innerCircle` becomes the enclosing circle. `boundingCircle`
 always returns whichever one encloses the chain.
 
+### Moving, Scaling, and Nesting
+
+`fitted(in:)` also takes a `Circle2D`, and `placed(in:)` puts a concentric chain
+inside one. Together they nest chains inside the circles of other chains.
+
+```swift
+let outer = SteinerCircle(outerRadius: 10, circleCount: 6)
+let host = outer.chainCircles[2]
+
+// A concentric chain whose outer circle is `host`
+let nested = SteinerCircle(outerRadius: 1, circleCount: 5).placed(in: host)
+
+// An inverted chain whose bounding circle is `host`
+let nestedInverted = SteinerCircle(outerRadius: 1, circleCount: 5)
+  .focused(on: 0, magnification: 3)?
+  .fitted(in: host)
+
+// Move and scale single circles
+let moved = host.offsetBy(dx: 2, dy: 0)
+let half = host.scaled(by: 0.5, about: host.center)
+```
+
+`placed(in:)` returns an `InvertedSteinerChain`, the type for a chain at a
+position; its circles stay concentric and equal.
+
 ### SwiftUI Example
 
 ```swift
@@ -159,6 +184,8 @@ struct SteinerChainView: View {
 
 `SteinerCircleUI` includes a `#Preview` in `SteinerCirclePlayground.swift` for visualizing
 both the concentric chain and the circle-inversion transform directly in Xcode's canvas.
+
+![Steiner circle demo](Steiner%20Circle%20Demo.png)
 
 - **Circles** / **Gap** sliders adjust the chain geometry in real time
 - **Windings** stepper wraps the chain into a star (up to (*n* − 1)/2 turns)
@@ -242,6 +269,8 @@ as `SoddyHexlet`'s.
 `SoddyHexletPlayground.swift` in `SoddyHexletUI` has a `#Preview` that renders
 an inverted hexlet in a `RealityView`, scaled so the enclosing sphere fills the view.
 
+![Soddy hexlet demo](Soddy%20Hexlet%20Demo.png)
+
 - **Phase** slider and **Rotate Ring** toggle roll the ring
 - **Inversion X / Y / Z** sliders move the inversion center inside the nucleus
 - **Show Enclosing Sphere** toggles the translucent outer sphere
@@ -306,8 +335,9 @@ Planned for 1.3.0:
 - ~~**5. `Codable` and `Hashable`**~~ on `SteinerCircle`, `Circle2D`, `CircleInversion`,
   and `InvertedSteinerChain`. Decoding a `SteinerCircle` applies the same clamping as `init`,
   and missing `windings`, `gap`, or `phase` take their defaults.
-- **6. Move and scale `Circle2D`**, and build a chain inside a given circle (for nesting):
-  `InvertedSteinerChain.fitted(in: Circle2D)` and `SteinerCircle.placed(in: Circle2D)`.
+- ~~**6. Move and scale `Circle2D`**~~ (`offsetBy(dx:dy:)`, `scaled(by:about:)`), and build a
+  chain inside a given circle (for nesting): `InvertedSteinerChain.fitted(in: Circle2D)` and
+  `SteinerCircle.placed(in: Circle2D)`.
 - **10. Number types beyond `CGFloat`** — `Float`/SIMD conversions for RealityKit.
   `Double` already works through Swift's implicit `CGFloat` conversion.
 

@@ -46,6 +46,19 @@ extension Circle2D {
 // MARK: - Transforms
 
 extension Circle2D {
+  /// This circle moved by `dx` and `dy`.
+  public func offsetBy(dx: CGFloat, dy: CGFloat) -> Circle2D {
+    Circle2D(center: CGPoint(x: center.x + dx, y: center.y + dy), radius: radius)
+  }
+
+  /// This circle scaled by `factor` about `anchor`. The radius scales by
+  /// the factor's magnitude, so a negative factor reflects through `anchor`.
+  public func scaled(by factor: CGFloat, about anchor: CGPoint = .zero) -> Circle2D {
+    Circle2D(center: CGPoint(x: anchor.x + (center.x - anchor.x) * factor,
+                             y: anchor.y + (center.y - anchor.y) * factor),
+             radius: radius * abs(factor))
+  }
+
   /// This circle mapped through a similarity transform (uniform scale,
   /// rotation, translation). Non-uniform transforms would turn circles
   /// into ellipses, so this stays internal to the fitting code.

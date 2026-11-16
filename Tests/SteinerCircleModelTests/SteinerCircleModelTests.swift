@@ -301,3 +301,73 @@ struct CodableHashableTests {
                  SteinerCircle(outerRadius: 1, circleCount: 6, phase: 0.1)]).count == 2)
   }
 }
+
+// MARK: - Move, Scale, and Nest
+
+@Suite("Move, Scale, and Nest")
+struct PlacementTests {
+
+  @Test("offsetBy moves the center and keeps the radius")
+  func offset() {
+    let c = Circle2D(center: CGPoint(x: 1, y: 2), radius: 3).offsetBy(dx: -4, dy: 0.5)
+    #expect(c == Circle2D(center: CGPoint(x: -3, y: 2.5), radius: 3))
+  }
+
+  @Test("scaled(by:about:) scales the radius and the center's distance from the anchor")
+  func scale() {
+    let c = Circle2D(center: CGPoint(x: 3, y: 1), radius: 2)
+    #expect(c.scaled(by: 2) == Circle2D(center: CGPoint(x: 6, y: 2), radius: 4))
+    #expect(c.scaled(by: 0.5, about: CGPoint(x: 1, y: 1))
+            == Circle2D(center: CGPoint(x: 2, y: 1), radius: 1))
+    #expect(c.scaled(by: -1, about: .zero) == Circle2D(center: CGPoint(x: -3, y: -1), radius: 2))
+  }
+
+  @Test("placed(in:) makes the outer circle the target and keeps tangency")
+  func placed() {
+    let target = Circle2D(center: CGPoint(x: 5, y: -2), radius: 3)
+    let chain = SteinerCircle(outerRadius: 10, circleCount: 7, gap: 0, phase: 0.4).placed(in: target)
+    expectClose(chain.outerCircle, target)
+    #expect(abs(chain.innerCircle.center.x - 5) < 1e-12)
+    for (i, circle) in chain.chainCircles.enumerated() {
+      #expect(isTangent(circle, chain.outerCircle))
+      #expect(isTangent(circle, chain.innerCircle))
+      #expect(isTangent(circle, chain.chainCircles[(i + 1) % 7]))
+    }
+  }
+
+  @Test("fitted(in: Circle2D) maps the bounding circle onto the target and keeps tangency")
+  func fittedInCircle() throws {
+    let sc = SteinerCircle(outerRadius: 10, circleCount: 6, gap: 0)
+    let chain = try #require(sc.inverted(through: CircleInversion(center: CGPoint(x: 1, y: 2), radius: 10)))
+    let target = Circle2D(center: CGPoint(x: -1, y: 4), radius: 0.5)
+    let fitted = chain.fitted(in: target)
+    expectClose(fitted.boundingCircle, target)
+    for circle in fitted.chainCircles {
+      #expect(isTangent(circle, fitted.outerCircle))
+      #expect(isTangent(circle, fitted.innerCircle))
+    }
+  }
+
+  @Test("A chain nests inside a circle of another chain")
+  func nesting() throws {
+    let outer = SteinerCircle(outerRadius: 10, circleCount: 6, gap: 0)
+    let host = outer.chainCircles[2]
+    let nested = SteinerCircle(outerRadius: 1, circleCount: 5, gap: 0).placed(in: host)
+    for circle in nested.chainCircles {
+      #expect(isTangent(circle, host))
+    }
+  }
+
+  private func expectClose(_ a: Circle2D, _ b: Circle2D) {
+    #expect(abs(a.center.x - b.center.x) < 1e-9)
+    #expect(abs(a.center.y - b.center.y) < 1e-9)
+    #expect(abs(a.radius - b.radius) < 1e-9)
+  }
+
+  private func isTangent(_ a: Circle2D, _ b: Circle2D) -> Bool {
+    let d = hypot(a.center.x - b.center.x, a.center.y - b.center.y)
+    let tolerance = 1e-6 * max(a.radius, b.radius)
+    return abs(d - (a.radius + b.radius)) < tolerance
+      || abs(d - abs(a.radius - b.radius)) < tolerance
+  }
+}

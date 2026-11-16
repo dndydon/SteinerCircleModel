@@ -47,11 +47,16 @@ public struct InvertedSteinerChain: Sendable {
   /// in `rect`, centered. Apply it to points such as the inversion center;
   /// apply its inverse to map view points back into chain coordinates.
   public func fittingTransform(in rect: CGRect) -> CGAffineTransform {
+    fittingTransform(in: Self.inscribedCircle(in: rect))
+  }
+
+  /// A uniform scale and translation that maps `boundingCircle` onto `circle`.
+  public func fittingTransform(in circle: Circle2D) -> CGAffineTransform {
     let bound = boundingCircle
-    let scale = min(rect.width, rect.height) / 2 / bound.radius
+    let scale = circle.radius / bound.radius
     return CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
-                             tx: rect.midX - bound.center.x * scale,
-                             ty: rect.midY - bound.center.y * scale)
+                             tx: circle.center.x - bound.center.x * scale,
+                             ty: circle.center.y - bound.center.y * scale)
   }
 
   /// This chain scaled and moved so `boundingCircle` is inscribed in `rect`.
@@ -60,8 +65,24 @@ public struct InvertedSteinerChain: Sendable {
   /// the inner circle and chain appear to move. Scaling and translating
   /// preserve tangency.
   public func fitted(in rect: CGRect) -> InvertedSteinerChain {
-    let transform = fittingTransform(in: rect)
-    return InvertedSteinerChain(
+    fitted(in: Self.inscribedCircle(in: rect))
+  }
+
+  /// This chain scaled and moved so `boundingCircle` becomes `circle` —
+  /// for example, to nest a chain inside a circle of another chain.
+  public func fitted(in circle: Circle2D) -> InvertedSteinerChain {
+    applying(fittingTransform(in: circle))
+  }
+
+  /// The largest circle centered in `rect`.
+  private static func inscribedCircle(in rect: CGRect) -> Circle2D {
+    Circle2D(center: CGPoint(x: rect.midX, y: rect.midY),
+             radius: min(rect.width, rect.height) / 2)
+  }
+
+  /// Every circle mapped through a similarity transform.
+  func applying(_ transform: CGAffineTransform) -> InvertedSteinerChain {
+    InvertedSteinerChain(
       outerCircle: outerCircle.applying(transform),
       innerCircle: innerCircle.applying(transform),
       chainCircles: chainCircles.map { $0.applying(transform) }
