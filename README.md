@@ -198,7 +198,7 @@ struct SteinerChainView: View {
 `SteinerCircleUI` includes a `#Preview` in `SteinerCirclePlayground.swift` for visualizing
 both the concentric chain and the circle-inversion transform directly in Xcode's canvas.
 
-![Steiner circle demo](Steiner%20Circle%20Demo.png)
+<img src="Steiner%20Circle%20Demo.png" alt="Steiner circle demo" width="480">
 
 - **Circles** / **Gap** sliders adjust the chain geometry in real time
 - **Windings** stepper wraps the chain into a star (up to (*n* − 1)/2 turns)
@@ -282,7 +282,7 @@ as `SoddyHexlet`'s.
 `SoddyHexletPlayground.swift` in `SoddyHexletUI` has a `#Preview` that renders
 an inverted hexlet in a `RealityView`, scaled so the enclosing sphere fills the view.
 
-![Soddy hexlet demo](Soddy%20Hexlet%20Demo.png)
+<img src="Soddy%20Hexlet%20Demo.png" alt="Soddy hexlet demo" width="480">
 
 - **Phase** slider and **Rotate Ring** toggle roll the ring
 - **Inversion X / Y / Z** sliders move the inversion center inside the nucleus
