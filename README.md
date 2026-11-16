@@ -1,7 +1,8 @@
 # SteinerCircleModel
 
 Pure geometry for [Steiner chains](https://en.wikipedia.org/wiki/Steiner_chain) —
-rings of circles packed between an outer and inner bounding circle.
+rings of circles packed between an outer and inner bounding circle — and for
+[Soddy's hexlet](https://en.wikipedia.org/wiki/Soddy%27s_hexlet), its 3D analog with spheres.
 
 ## Products
 
@@ -9,6 +10,8 @@ rings of circles packed between an outer and inner bounding circle.
 |---------|---------|--------------|
 | `SteinerCircleModel` | Geometry only | `Foundation`, `CoreGraphics` |
 | `SteinerCircleUI` | SwiftUI drawing helpers and an interactive demo | `SteinerCircleModel`, `SwiftUI` |
+| `SoddyHexletModel` | 3D hexlet geometry (see [Soddy's Hexlet](#soddys-hexlet)) | `SteinerCircleModel`, `simd` |
+| `SoddyHexletUI` | A `RealityView` hexlet demo | `SoddyHexletModel`, `RealityKit`, `SwiftUI` |
 
 Depend on `SteinerCircleModel` alone when you don't need SwiftUI.
 All model types are `Sendable`, and the package builds in Swift 6 language mode.
@@ -169,10 +172,88 @@ both the concentric chain and the circle-inversion transform directly in Xcode's
 Open the file in Xcode and choose **Editor > Canvas** to use it.
 The demo isn't available on tvOS, which lacks `Slider` and `DragGesture`.
 
+## Soddy's Hexlet
+
+A hexlet is a ring of six spheres, each tangent to its two neighbors and to
+three mutually tangent spheres A, B, and C. However the ring is rolled, it
+closes — the 3D version of Steiner's porism.
+
+| Type | Purpose |
+|------|---------|
+| `SoddyHexlet` | Standard form: planes A and B at z = ±*r*, nucleus C of radius *r*, six ring spheres of radius *r* |
+| `InvertedSoddyHexlet` | A general hexlet: spheres `a`, `b`, `c` and the six-sphere ring `spheres` |
+| `Sphere3D` | Sphere value type (`SIMD3<Double>` center + radius), with `Float` accessors for RealityKit |
+| `Plane3D` | Plane value type; its normal points into the side it bounds |
+| `SphereInversion` | Inversion through a sphere — maps points, spheres, and planes, with signed curvature of each image |
+| `HexletError` | Why three spheres can't hold a hexlet |
+
+### Standard Form and Inversion
+
+The standard form is built by composition: its z = 0 slice is a six-circle
+`SteinerCircle` with outer radius 3*r* and no gap, lifted into 3D.
+
+```swift
+import SoddyHexletModel
+
+let hexlet = SoddyHexlet(radius: 1, phase: 0.3)
+hexlet.ringSpheres  // [Sphere3D], centers 2r from the origin, 60° apart
+hexlet.nucleus      // Sphere3D at the origin
+hexlet.planeA       // Plane3D, z = r
+hexlet.slice        // the SteinerCircle cross-section
+
+// Invert it into a general hexlet; nil if the center lies on any sphere or plane
+let inversion = SphereInversion(center: [0.3, 0, 0.2], radius: 1)
+if let general = hexlet.inverted(through: inversion) {
+  general.a                // image of plane A (likewise b and c)
+  general.spheres          // [Sphere3D] — the ring, now in varying sizes
+  general.enclosingSphere  // the sphere containing all others, if any
+}
+```
+
+As in 2D, the model is a pure function of `phase`. When the inversion center
+lies inside one of the original regions (the nucleus, a ring sphere, or beyond
+a plane), that sphere's image encloses all the others.
+
+### From Three Tangent Spheres
+
+`init(tangentTo:_:_:phase:)` builds the hexlet around any three mutually
+tangent spheres. Any pair may touch internally, so `a` can enclose the others.
+
+```swift
+let outer = Sphere3D(center: .zero, radius: 3)
+let inner = Sphere3D(center: [0, 0, 1], radius: 2)
+let nucleus = Sphere3D(center: [0, 0, -2], radius: 1)
+
+do {
+  let hexlet = try InvertedSoddyHexlet(tangentTo: outer, inner, nucleus, phase: 0)
+  hexlet.spheres  // six spheres, each tangent to all three and to its neighbors
+} catch {
+  // .notMutuallyTangent or .degenerate
+}
+```
+
+It inverts at the point where `a` and `b` touch, which turns them into parallel
+planes, builds the standard form between them, and inverts the ring back.
+Its `phase` 0 is a fixed but arbitrary starting position, not the same one
+as `SoddyHexlet`'s.
+
+### Hexlet Preview
+
+`SoddyHexletPlayground.swift` in `SoddyHexletUI` has a `#Preview` that renders
+an inverted hexlet in a `RealityView`, scaled so the enclosing sphere fills the view.
+
+- **Phase** slider and **Rotate Ring** toggle roll the ring
+- **Inversion X / Y / Z** sliders move the inversion center inside the nucleus
+- **Show Enclosing Sphere** toggles the translucent outer sphere
+- **Drag** to orbit the camera (not on visionOS)
+
+The demo needs iOS 18, macOS 15, or visionOS 1, and isn't available on tvOS or watchOS.
+
 ## Requirements
 
 - Swift 6.0+
 - macOS 14+, iOS 17+, tvOS 17+, watchOS 10+, visionOS 1+
+- `SoddyHexletUI` demo: macOS 15+, iOS 18+, visionOS 1+
 
 ## Roadmap
 
@@ -203,7 +284,7 @@ the whole ring able to roll.
 | Games (porism puzzle, rolling marbles, gears) | Rotate and invert to align targets; chain rolls between boundaries | Hit-testing; per-circle spin angle; tangent points |
 | Data visualization of cyclic data (week, year, 24-hour clock) | Focus plus context, with "now" enlarged | Focus by index |
 | Generative art | Multi-winding star chains; nested chains approaching Apollonian-like fractals | Multiple windings |
-| visionOS | Soddy's hexlet — the 3D analog with spheres in a `RealityView` | `Sphere3D`, 3D inversion, `Float`/SIMD types |
+| visionOS | Soddy's hexlet — the 3D analog with spheres in a `RealityView` | Done: `SoddyHexletModel` and `SoddyHexletUI` |
 
 Not a good fit: data where circle size must stand for a quantity
 ("this color is 40% of the image"). Use a pie chart or circle packing for that.
