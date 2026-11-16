@@ -15,6 +15,9 @@ let package = Package(
     .library(
       name: "SoddyHexletModel",
       targets: ["SoddyHexletModel"]),
+    .library(
+      name: "SoddyHexletUI",
+      targets: ["SoddyHexletUI"]),
   ],
   targets: [
     .target(
@@ -25,6 +28,9 @@ let package = Package(
     .target(
       name: "SoddyHexletModel",
       dependencies: ["SteinerCircleModel"]),
+    .target(
+      name: "SoddyHexletUI",
+      dependencies: ["SoddyHexletModel"]),
     .testTarget(
       name: "SteinerCircleModelTests",
       dependencies: ["SteinerCircleModel"]),
