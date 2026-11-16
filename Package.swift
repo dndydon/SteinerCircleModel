@@ -12,6 +12,9 @@ let package = Package(
     .library(
       name: "SteinerCircleUI",
       targets: ["SteinerCircleUI"]),
+    .library(
+      name: "SoddyHexletModel",
+      targets: ["SoddyHexletModel"]),
   ],
   targets: [
     .target(
@@ -19,8 +22,14 @@ let package = Package(
     .target(
       name: "SteinerCircleUI",
       dependencies: ["SteinerCircleModel"]),
+    .target(
+      name: "SoddyHexletModel",
+      dependencies: ["SteinerCircleModel"]),
     .testTarget(
       name: "SteinerCircleModelTests",
       dependencies: ["SteinerCircleModel"]),
+    .testTarget(
+      name: "SoddyHexletModelTests",
+      dependencies: ["SoddyHexletModel"]),
   ]
 )
